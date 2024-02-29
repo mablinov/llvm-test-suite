@@ -1,0 +1,237 @@
+include(${CMAKE_CURRENT_SOURCE_DIR}/../../DgOptions.txt)
+
+set(TestsToSkip)
+
+##
+## Main Test Blacklist for Clang
+##
+
+# Tests with features unsupported by Clang (usually GCC extensions)
+# (Big list of naughty tests)
+file(GLOB UnsupportedTests CONFIGURE_DEPENDS
+  dummy
+)
+
+list(APPEND TestsToSkip ${UnsupportedTests})
+
+# Tests where clang currently has bugs or issues
+file(GLOB FailingTests CONFIGURE_DEPENDS
+  dummy
+)
+list(APPEND TestsToSkip ${FailingTests})
+
+# Tests that require a particular C/C++ standard
+
+# RISC-V Test Blacklist
+if(ARCH MATCHES "riscv")
+  file(GLOB RISCVTestsToSkip CONFIGURE_DEPENDS
+    dummy
+  )
+
+  if (LIBC MATCHES "musl")
+    file(GLOB TestsToSkipForMuslLibc
+      dummy
+    )
+    list(APPEND TestsToSkip ${TestsToSkipForMuslLibc})
+  endif()
+
+  if (ARCH MATCHES "riscv32")
+    file(GLOB RISCV32TestsToSkip CONFIGURE_DEPENDS
+      dummy
+    )
+
+    list(APPEND RISCVTestsToSkip ${RISCV32TestsToSkip})
+  endif()
+
+  list(APPEND TestsToSkip ${RISCVTestsToSkip})
+endif()
+
+# x86-only Tests
+if(NOT ARCH MATCHES "x86")
+  file(GLOB X86OnlyTests CONFIGURE_DEPENDS
+    dummy
+  )
+
+  list(APPEND TestsToSkip ${X86OnlyTests})
+endif()
+
+# arm-only Tests
+if(NOT ARCH MATCHES "arm")
+  file(GLOB armOnlyTests CONFIGURE_DEPENDS
+    dummy
+  )
+
+  list(APPEND TestsToSkip ${armOnlyTests})
+endif()
+
+# aarch64-only Tests
+if(NOT ARCH MATCHES "aarch64")
+  file(GLOB aarch64OnlyTests CONFIGURE_DEPENDS
+    dummy
+  )
+
+  list(APPEND TestsToSkip ${aarch64OnlyTests})
+endif()
+
+# mips-only Tests
+if(NOT ARCH MATCHES "mips")
+  file(GLOB mipsOnlyTests CONFIGURE_DEPENDS
+    dummy
+  )
+
+  list(APPEND TestsToSkip ${mipsOnlyTests})
+endif()
+
+# powerpc-only Tests
+if(NOT ARCH MATCHES "powerpc")
+  file(GLOB POWERPCOnlyTests CONFIGURE_DEPENDS
+    dummy
+  )
+
+  list(APPEND TestsToSkip ${POWERPCOnlyTests})
+endif()
+
+# mmix-only Tests
+if(NOT ARCH MATCHES "mmix")
+  file(GLOB mmixOnlyTests CONFIGURE_DEPENDS
+    dummy
+  )
+
+  list(APPEND TestsToSkip ${mmixOnlyTests})
+endif()
+
+# Skip the test cases non-supported for non-linux targets
+if (NOT CMAKE_SYSTEM_NAME MATCHES "Linux")
+  file(GLOB TestsToSkipForNonLinux
+    dummy
+  )
+  list(APPEND TestsToSkip ${TestsToSkipForNonLinux})
+endif()
+
+if (CMAKE_SYSTEM_NAME MATCHES "Linux")
+  file(GLOB TestsToSkipForLinux
+    dummy
+  )
+  list(APPEND TestsToSkip ${TestsToSkipForLinux})
+endif()
+
+if(FEATURE_ATOMIC MATCHES "OFF")
+  file(GLOB TestsToSkipForNonAtomic
+    dummy
+  )
+  list(APPEND TestsToSkip ${TestsToSkipForNonAtomic})
+endif()
+
+if (NOT MARCH MATCHES "f")
+  file (GLOB TestsToSkipForNonFPU
+    dummy
+  )
+  list(APPEND TestsToSkip ${TestsToSkipForNonFPU})
+endif()
+
+##
+## Tests that require extra CFLAGS in Clang
+##
+
+# Tests that require libm (-lm ldflag)
+file(GLOB TestRequiresLibM CONFIGURE_DEPENDS
+  dummy
+)
+
+# Tests that require libatomic (-latomic ldflag)
+file(GLOB TestRequiresLibAtomic CONFIGURE_DEPENDS
+  atomic-exchange-5.c
+)
+
+# Tests that require '__declspec' attributes
+file(GLOB TestRequiresDECLSPEC CONFIGURE_DEPENDS
+  dummy
+)
+
+if (CMAKE_C_COMPILER_ID MATCHES "GNU")
+  list(APPEND TestsToSkip ${TestRequiresDECLSPEC})
+endif()
+
+# Skip time consumed tests
+if(TEST_SUITE_TEST_MODE MATCHES "fast-run")
+  file(GLOB TimeConsumingTests CONFIGURE_DEPENDS
+    dummy
+  )
+
+  list(APPEND TestsToSkip ${TimeConsumingTests})
+endif()
+
+# Skip fixed opt level tests when there are extra cflags
+if(EXTRA_CFLAGS MATCHES "")
+  file(GLOB OptFixedTests CONFIGURE_DEPENDS
+    dummy
+  )
+
+  list(APPEND TestsToSkip ${OptFixedTests})
+endif()
+
+# Tests that require -Wno-return-type
+file(GLOB TestRequiresWNoReturnType CONFIGURE_DEPENDS
+  dummy
+)
+
+# Tests that require -ffixed-point
+file (GLOB TestRequiresFFixedPoint CONFIGURE_DEPENDS
+  dummy
+)
+
+# Tests that use varargs on segmented stacks, and are not supported by
+# the platform
+if(ARCH MATCHES "x86" OR ARCH MATCHES "arm")
+  file(GLOB UnsupportedTests CONFIGURE_DEPENDS
+    dummy
+  )
+endif()
+
+list(APPEND TestsToSkip ${UnsupportedTests})
+
+##
+## Test target setup
+##
+
+file(GLOB TestFiles CONFIGURE_DEPENDS
+  *.c
+)
+foreach(TestToSkip ${TestsToSkip})
+  list(REMOVE_ITEM TestFiles ${TestToSkip})
+endforeach()
+
+foreach(File ${TestFiles})
+  set(MaybeCFlags)
+  set(MaybeLDFlags)
+
+  # Add Test-specific CFLAGS/LDFLAGS here
+
+  if(${File} IN_LIST TestRequiresLibM)
+    list(APPEND MaybeLDFlags "-lm")
+  endif()
+
+  if(${File} IN_LIST TestRequiresLibAtomic)
+    list(APPEND MaybeLDFlags "-latomic")
+  endif()
+
+  if(${File} IN_LIST TestRequiresDECLSPEC)
+    list(APPEND MaybeCFlags "-fdeclspec")
+  endif()
+
+  if(${File} IN_LIST TestRequiresWNoReturnType)
+    list(APPEND MaybeCFlags "-Wno-return-type")
+  endif()
+
+  if(${File} IN_LIST TestRequiresFFixedPoint)
+    list(APPEND MaybeCFlags "-ffixed-point")
+  endif()
+
+  # Add Test Target
+  gcc_torture_execute_test(${File}
+                           PREFIX "GCC-DG"
+                           CFLAGS ${MaybeCFlags}
+                           LDFLAGS ${MaybeLDFlags})
+
+endforeach()
+
