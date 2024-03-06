@@ -118,6 +118,17 @@ file(GLOB UnsupportedTests CONFIGURE_DEPENDS
   # Misc
   builtin-sprintf.c
   ssa-dse-10.c
+
+  # Test case that takes ages to build
+  pr93435.c
+  pr43491.c
+  builtins-folding-gimple-ub.c
+
+  # Test only targets archs will `sizeof(int) < 4`:
+  vrp66-int16-sw.c
+
+  # Test dependent on fragile `__builtin_constant_p` assertion
+  modref-2.c
 )
 
 list(APPEND TestsToSkip ${UnsupportedTests})
